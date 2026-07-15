@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>코디 추천</title>
+<style>
+  :root {
+    --ivory: #f7f3ec;
+    --ivory-deep: #efe8db;
+    --line: #e2d9c8;
+    --ink: #3a3530;
+    --ink-soft: #7a7166;
+    --accent: #b08c5e;
+    --accent-dark: #8f6f43;
+    --error: #b5453a;
+    --error-bg: #fbeceb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 20px 80px;
+    background: var(--ivory);
+    color: var(--ink);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", -apple-system, sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 24px; }
+  header h1 { font-size: 28px; margin: 0 0 8px; letter-spacing: -0.02em; }
+  header p { margin: 0; color: var(--ink-soft); font-size: 14px; }
+
+  .main-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .main-tab-btn {
+    flex: 1;
+    padding: 12px 16px;
+    border: none;
+    background: none;
+    color: var(--ink-soft);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .main-tab-btn:hover { color: var(--ink); }
+  .main-tab-btn.active { color: var(--accent-dark); border-bottom-color: var(--accent); }
+
+  .panel {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px 24px;
+    margin-bottom: 20px;
+  }
+  .panel h2 {
+    font-size: 13px;
+    margin: 0 0 12px;
+    color: var(--ink-soft);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 70px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: inherit;
+    resize: vertical;
+    background: var(--ivory);
+  }
+
+  .field { margin-bottom: 16px; }
+  .field:last-of-type { margin-bottom: 0; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+  .field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  input[type="text"], select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: inherit;
+    background: var(--ivory);
+    color: var(--ink);
+  }
+  select { cursor: pointer; }
+
+  .segmented { display: flex; flex-wrap: wrap; gap: 8px; }
+  .seg-btn {
+    padding: 8px 16px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--ivory);
+    color: var(--ink-soft);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .seg-btn:hover { border-color: var(--accent); }
+  .seg-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .checkbox-field { display: flex; align-items: center; }
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .checkbox-label input { width: auto; margin: 0; }
+
+  .wardrobe-list {
+    list-style: none;
+    margin: 16px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .wardrobe-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--ivory);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 13.5px;
+  }
+  .wardrobe-empty {
+    font-size: 13px;
+    color: var(--ink-soft);
+    padding: 8px 0;
+  }
+  .wardrobe-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .wardrobe-del, .wardrobe-edit {
+    background: none;
+    border: none;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+  .wardrobe-del { color: var(--error); }
+  .wardrobe-edit { color: var(--accent-dark); }
+  .wardrobe-del:hover, .wardrobe-edit:hover { text-decoration: underline; }
+
+  .wardrobe-group { margin-bottom: 18px; }
+  .wardrobe-group:last-child { margin-bottom: 0; }
+  .wardrobe-group-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-dark);
+    margin: 0 0 8px;
+  }
+
+  .form-hint {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-bottom: 12px;
+  }
+
+  .wardrobe-backup-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+
+  .tag {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 999px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+  .tag-wardrobe { background: #e6efe4; color: #4a7a3f; }
+  .tag-recommended { background: var(--ivory-deep); color: var(--ink-soft); }
+
+  button.primary {
+    margin-top: 12px;
+    padding: 12px 22px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  button.primary:hover:not(:disabled) { background: var(--accent-dark); }
+  button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  button.small {
+    padding: 9px 16px;
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button.small:hover { background: #000; }
+
+  .status-line {
+    margin-top: 14px;
+    font-size: 14px;
+    color: var(--ink-soft);
+    display: none;
+  }
+  .status-line.visible { display: block; }
+  .status-line.error { color: var(--error); background: var(--error-bg); padding: 10px 14px; border-radius: 8px; }
+
+  .results {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-top: 24px;
+  }
+  @media (max-width: 760px) {
+    .results { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .card .occasion {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--accent-dark);
+    text-transform: uppercase;
+    background: var(--ivory-deep);
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    align-self: flex-start;
+  }
+  .item-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .item-list li {
+    font-size: 13.5px;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .item-list .cat {
+    flex-shrink: 0;
+    width: 44px;
+    color: var(--ink-soft);
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .item-list .desc { color: var(--ink); }
+  .item-list .desc .color-name { color: var(--ink-soft); }
+
+  .palette { display: flex; gap: 6px; }
+  .swatch {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.08);
+  }
+
+  .tip {
+    font-size: 13px;
+    color: var(--ink-soft);
+    border-top: 1px dashed var(--line);
+    padding-top: 12px;
+    margin: 0;
+  }
+
+  footer {
+    text-align: center;
+    margin-top: 40px;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>코디 추천</h1>
+    <p>종류·아이템·색상·핏을 입력하면, 상황별 코디 3가지를 제안해드려요.</p>
+  </header>
+
+  <div class="main-tabs" id="mainTabs">
+    <button type="button" class="main-tab-btn active" data-maintab="recommend">코디 추천</button>
+    <button type="button" class="main-tab-btn" data-maintab="wardrobe">옷장 관리</button>
+  </div>
+
+  <div id="tabRecommend" class="tab-content">
+  <div class="panel">
+    <h2>옷 정보 입력</h2>
+
+    <div class="field">
+      <label>종류</label>
+      <div class="segmented" id="slotSelect">
+        <button type="button" class="seg-btn active" data-slot="top">상의</button>
+        <button type="button" class="seg-btn" data-slot="bottom">하의</button>
+        <button type="button" class="seg-btn" data-slot="outer">아우터</button>
+        <button type="button" class="seg-btn" data-slot="dress">원피스</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>기준 아이템 입력 방식</label>
+      <div class="segmented" id="anchorModeSelect">
+        <button type="button" class="seg-btn active" data-mode="manual">직접 입력</button>
+        <button type="button" class="seg-btn" data-mode="wardrobe">내 옷장에서 선택</button>
+      </div>
+    </div>
+
+    <div id="manualAnchorFields">
+      <div class="field">
+        <label for="itemTypeInput">아이템</label>
+        <input type="text" id="itemTypeInput" placeholder="예: 생지데님, 반팔니트, 롱슬리브">
+      </div>
+
+      <div class="field-grid">
+        <div class="field">
+          <label for="colorInput">색상</label>
+          <input type="text" id="colorInput" list="colorOptions" placeholder="예: 아이보리">
+          <datalist id="colorOptions"></datalist>
+        </div>
+        <div class="field">
+          <label for="fitSelect">핏</label>
+          <select id="fitSelect">
+            <option value="regular">레귤러핏</option>
+            <option value="slim">슬림핏</option>
+            <option value="loose">루즈핏</option>
+            <option value="oversized">오버사이즈핏</option>
+            <option value="crop">크롭핏</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="field" id="wardrobeAnchorField" style="display:none;">
+      <label for="wardrobeAnchorSelect">옷장에서 선택</label>
+      <select id="wardrobeAnchorSelect"></select>
+    </div>
+
+    <div class="field checkbox-field">
+      <label class="checkbox-label">
+        <input type="checkbox" id="useWardrobeCheckbox">
+        궁합 아이템도 내 옷장에서 찾기 (없으면 일반 추천으로 대체)
+      </label>
+    </div>
+
+    <button class="primary" id="recommendBtn">코디 추천받기</button>
+    <div class="status-line" id="statusLine"></div>
+  </div>
+
+  <div class="results" id="results"></div>
+  </div>
+
+  <div id="tabWardrobe" class="tab-content" style="display:none;">
+  <div class="panel">
+    <h2 id="wardrobeFormTitle">내 옷장에 추가</h2>
+
+    <div class="field">
+      <label>카테고리</label>
+      <div class="segmented" id="wardrobeCategorySelect">
+        <button type="button" class="seg-btn active" data-cat="상의">상의</button>
+        <button type="button" class="seg-btn" data-cat="하의">하의</button>
+        <button type="button" class="seg-btn" data-cat="아우터">아우터</button>
+        <button type="button" class="seg-btn" data-cat="원피스">원피스</button>
+        <button type="button" class="seg-btn" data-cat="신발">신발</button>
+        <button type="button" class="seg-btn" data-cat="액세서리">액세서리</button>
+      </div>
+    </div>
+
+    <div class="field-grid">
+      <div class="field">
+        <label for="wardrobeItemInput">아이템</label>
+        <input type="text" id="wardrobeItemInput" placeholder="예: 화이트 스니커즈">
+      </div>
+      <div class="field">
+        <label for="wardrobeColorInput">색상</label>
+        <input type="text" id="wardrobeColorInput" list="colorOptions" placeholder="예: 화이트">
+      </div>
+    </div>
+
+    <div class="field" id="wardrobeFitField">
+      <label for="wardrobeFitSelect">핏</label>
+      <select id="wardrobeFitSelect">
+        <option value="regular">레귤러핏</option>
+        <option value="slim">슬림핏</option>
+        <option value="loose">루즈핏</option>
+        <option value="oversized">오버사이즈핏</option>
+        <option value="crop">크롭핏</option>
+      </select>
+    </div>
+
+    <button class="small" id="addWardrobeBtn">옷장에 추가</button>
+    <button class="small" id="cancelEditBtn" style="display:none; background:var(--ink-soft);">취소</button>
+    <div class="status-line" id="wardrobeStatusLine"></div>
+  </div>
+
+  <div class="panel">
+    <h2>내 옷장 목록</h2>
+    <p class="form-hint">주소(URL)가 바뀌면 옷장 데이터가 새로 시작될 수 있어요. 내보내기로 백업해두고, 다른 주소에서는 불러오기로 복원하세요.</p>
+    <div class="wardrobe-backup-row">
+      <button class="small" id="exportWardrobeBtn">내보내기 (백업)</button>
+      <button class="small" id="importWardrobeBtn" style="background:var(--ink-soft);">불러오기 (복원)</button>
+      <input type="file" id="importWardrobeFile" accept="application/json" style="display:none;">
+    </div>
+    <div id="wardrobeList"></div>
+  </div>
+  </div>
+
+  <footer>인터넷 연결이나 서버 없이, 브라우저에만 저장되고 즉시 계산됩니다.</footer>
+</div>
+
+<script>
+const itemTypeInput = document.getElementById("itemTypeInput");
+const colorInput = document.getElementById("colorInput");
+const fitSelect = document.getElementById("fitSelect");
+const recommendBtn = document.getElementById("recommendBtn");
+const statusLine = document.getElementById("statusLine");
+const resultsEl = document.getElementById("results");
+
+const manualAnchorFields = document.getElementById("manualAnchorFields");
+const wardrobeAnchorField = document.getElementById("wardrobeAnchorField");
+const wardrobeAnchorSelect = document.getElementById("wardrobeAnchorSelect");
+const useWardrobeCheckbox = document.getElementById("useWardrobeCheckbox");
+
+const wardrobeItemInput = document.getElementById("wardrobeItemInput");
+const wardrobeColorInput = document.getElementById("wardrobeColorInput");
+const wardrobeFitField = document.getElementById("wardrobeFitField");
+const wardrobeFitSelect = document.getElementById("wardrobeFitSelect");
+const addWardrobeBtn = document.getElementById("addWardrobeBtn");
+const cancelEditBtn = document.getElementById("cancelEditBtn");
+const wardrobeFormTitle = document.getElementById("wardrobeFormTitle");
+const wardrobeStatusLine = document.getElementById("wardrobeStatusLine");
+const wardrobeListEl = document.getElementById("wardrobeList");
+const exportWardrobeBtn = document.getElementById("exportWardrobeBtn");
+const importWardrobeBtn = document.getElementById("importWardrobeBtn");
+const importWardrobeFile = document.getElementById("importWardrobeFile");
+
+const mainTabButtons = document.querySelectorAll("#mainTabs .main-tab-btn");
+const tabContents = { recommend: document.getElementById("tabRecommend"), wardrobe: document.getElementById("tabWardrobe") };
+mainTabButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    mainTabButtons.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    const target = btn.dataset.maintab;
+    Object.keys(tabContents).forEach(key => {
+      tabContents[key].style.display = key === target ? "" : "none";
+    });
+  });
+});
+
+function makeSegmentedGroup(containerId, onSelect) {
+  const buttons = document.querySelectorAll(`#${containerId} .seg-btn`);
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      buttons.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      onSelect(btn.dataset);
+    });
+  });
+}
+
+let selectedSlot = "top";
+makeSegmentedGroup("slotSelect", (data) => {
+  selectedSlot = data.slot;
+  if (anchorMode === "wardrobe") refreshWardrobeAnchorOptions();
+});
+
+let anchorMode = "manual";
+makeSegmentedGroup("anchorModeSelect", (data) => {
+  anchorMode = data.mode;
+  manualAnchorFields.style.display = anchorMode === "manual" ? "" : "none";
+  wardrobeAnchorField.style.display = anchorMode === "wardrobe" ? "" : "none";
+  if (anchorMode === "wardrobe") refreshWardrobeAnchorOptions();
+});
+
+let wardrobeCategory = "상의";
+makeSegmentedGroup("wardrobeCategorySelect", (data) => {
+  wardrobeCategory = data.cat;
+  wardrobeFitField.style.display = FIT_CATEGORIES.has(wardrobeCategory) ? "" : "none";
+});
+
+function setStatus(message, type) {
+  statusLine.textContent = message || "";
+  statusLine.className = "status-line" + (message ? " visible" : "") + (type === "error" ? " error" : "");
+}
+
+function setWardrobeStatus(message, type) {
+  wardrobeStatusLine.textContent = message || "";
+  wardrobeStatusLine.className = "status-line" + (message ? " visible" : "") + (type === "error" ? " error" : "");
+}
+
+const CATEGORY_LABELS = {
+  "상의": "상의", "하의": "하의", "아우터": "아우터", "신발": "신발", "액세서리": "액세서리",
+  "top": "상의", "bottom": "하의", "outer": "아우터", "shoes": "신발", "accessory": "액세서리"
+};
+
+function renderResults(outfits) {
+  resultsEl.innerHTML = "";
+  outfits.forEach(outfit => {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const occasion = document.createElement("div");
+    occasion.className = "occasion";
+    occasion.textContent = outfit.occasion || "코디";
+    card.appendChild(occasion);
+
+    const list = document.createElement("ul");
+    list.className = "item-list";
+    (outfit.items || []).forEach(item => {
+      const li = document.createElement("li");
+      const catLabel = CATEGORY_LABELS[item.category] || item.category || "";
+      let tag = "";
+      if (item.source === "wardrobe") tag = '<span class="tag tag-wardrobe">내 옷장</span>';
+      else if (item.source === "recommended") tag = '<span class="tag tag-recommended">추천템</span>';
+      li.innerHTML = `<span class="cat">${catLabel}</span><span class="desc">${item.name || ""} <span class="color-name">(${item.color || ""})</span>${tag}</span>`;
+      list.appendChild(li);
+    });
+    card.appendChild(list);
+
+    if (Array.isArray(outfit.palette) && outfit.palette.length) {
+      const palette = document.createElement("div");
+      palette.className = "palette";
+      outfit.palette.forEach(hex => {
+        const sw = document.createElement("div");
+        sw.className = "swatch";
+        sw.style.backgroundColor = /^#[0-9a-fA-F]{3,6}$/.test(hex) ? hex : "#ccc";
+        sw.title = hex;
+        palette.appendChild(sw);
+      });
+      card.appendChild(palette);
+    }
+
+    if (outfit.tip) {
+      const tip = document.createElement("p");
+      tip.className = "tip";
+      tip.textContent = outfit.tip;
+      card.appendChild(tip);
+    }
+
+    resultsEl.appendChild(card);
+  });
+}
+
+const COLOR_LIBRARY = [
+  { keys: ["아이보리"], name: "아이보리", hex: "#F3ECDF", family: "neutral" },
+  { keys: ["화이트", "흰색", "하양"], name: "화이트", hex: "#FFFFFF", family: "neutral" },
+  { keys: ["블랙", "검정", "까망"], name: "블랙", hex: "#1C1C1C", family: "neutral" },
+  { keys: ["그레이", "회색"], name: "그레이", hex: "#9C9891", family: "neutral" },
+  { keys: ["베이지"], name: "베이지", hex: "#E4D5B7", family: "neutral" },
+  { keys: ["네이비"], name: "네이비", hex: "#1F2A44", family: "cool" },
+  { keys: ["카키"], name: "카키", hex: "#8A7F55", family: "earth" },
+  { keys: ["브라운", "갈색"], name: "브라운", hex: "#6B4A32", family: "earth" },
+  { keys: ["데님", "청", "블루진"], name: "데님블루", hex: "#4A6D8C", family: "cool" },
+  { keys: ["레드", "빨강", "빨간"], name: "레드", hex: "#B23A34", family: "bold" },
+  { keys: ["핑크", "분홍"], name: "핑크", hex: "#E7AEB8", family: "pastel" },
+  { keys: ["옐로우", "노랑", "노란"], name: "옐로우", hex: "#E5C24C", family: "bold" },
+  { keys: ["그린", "초록"], name: "그린", hex: "#5C7A5C", family: "earth" },
+  { keys: ["블루", "파랑", "파란"], name: "블루", hex: "#3E6FA6", family: "cool" },
+  { keys: ["퍼플", "보라"], name: "퍼플", hex: "#6E5480", family: "cool" },
+  { keys: ["라벤더"], name: "라벤더", hex: "#C3B7D9", family: "pastel" },
+  { keys: ["민트"], name: "민트", hex: "#A6D8CB", family: "pastel" }
+];
+const COLOR_BY_NAME = Object.fromEntries(COLOR_LIBRARY.map(c => [c.name, c]));
+
+const colorOptionsEl = document.getElementById("colorOptions");
+COLOR_LIBRARY.forEach(c => {
+  const opt = document.createElement("option");
+  opt.value = c.name;
+  colorOptionsEl.appendChild(opt);
+});
+
+const SLOT_LABEL = { top: "상의", bottom: "하의", outer: "아우터", dress: "원피스" };
+const OPPOSITE_CATEGORY = { "상의": "하의", "하의": "상의" };
+const FIT_LABELS = { regular: "레귤러핏", slim: "슬림핏", loose: "루즈핏", oversized: "오버사이즈핏", crop: "크롭핏" };
+const FIT_CATEGORIES = new Set(["상의", "하의", "아우터", "원피스"]);
+const WARDROBE_CATEGORIES = ["상의", "하의", "아우터", "원피스", "신발", "액세서리"];
+const FIT_PREFERENCE = {
+  oversized: ["slim", "regular"],
+  loose: ["slim", "regular"],
+  slim: ["loose", "oversized", "regular"],
+  crop: ["loose", "oversized", "regular"]
+};
+
+const WARDROBE_KEY = "coordi_wardrobe_v1";
+
+function loadWardrobe() {
+  try {
+    const raw = localStorage.getItem(WARDROBE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveWardrobe() {
+  localStorage.setItem(WARDROBE_KEY, JSON.stringify(wardrobe));
+}
+
+let wardrobe = loadWardrobe();
+
+let editingId = null;
+
+function startEditWardrobeItem(w) {
+  editingId = w.id;
+  const catButtons = document.querySelectorAll("#wardrobeCategorySelect .seg-btn");
+  catButtons.forEach(b => b.classList.toggle("active", b.dataset.cat === w.category));
+  wardrobeCategory = w.category;
+  wardrobeFitField.style.display = FIT_CATEGORIES.has(wardrobeCategory) ? "" : "none";
+  wardrobeItemInput.value = w.itemType;
+  wardrobeColorInput.value = w.color;
+  wardrobeFitSelect.value = w.fit || "regular";
+  wardrobeFormTitle.textContent = "옷장 아이템 수정";
+  addWardrobeBtn.textContent = "수정 완료";
+  cancelEditBtn.style.display = "";
+  setWardrobeStatus("", null);
+  wardrobeItemInput.focus();
+}
+
+function stopEditWardrobeItem() {
+  editingId = null;
+  wardrobeItemInput.value = "";
+  wardrobeColorInput.value = "";
+  wardrobeFitSelect.value = "regular";
+  wardrobeFormTitle.textContent = "내 옷장에 추가";
+  addWardrobeBtn.textContent = "옷장에 추가";
+  cancelEditBtn.style.display = "none";
+}
+
+cancelEditBtn.addEventListener("click", stopEditWardrobeItem);
+
+function renderWardrobeList() {
+  wardrobeListEl.innerHTML = "";
+  if (!wardrobe.length) {
+    const empty = document.createElement("p");
+    empty.className = "wardrobe-empty";
+    empty.textContent = "아직 추가된 옷이 없어요.";
+    wardrobeListEl.appendChild(empty);
+    return;
+  }
+
+  WARDROBE_CATEGORIES.forEach(category => {
+    const items = wardrobe.filter(w => w.category === category);
+    if (!items.length) return;
+
+    const group = document.createElement("div");
+    group.className = "wardrobe-group";
+
+    const title = document.createElement("p");
+    title.className = "wardrobe-group-title";
+    title.textContent = `${category} (${items.length})`;
+    group.appendChild(title);
+
+    const list = document.createElement("ul");
+    list.className = "wardrobe-list";
+
+    items.forEach(w => {
+      const li = document.createElement("li");
+      li.className = "wardrobe-item";
+      const label = document.createElement("span");
+      label.textContent = `${w.itemType} (${w.color}${w.fit ? ", " + FIT_LABELS[w.fit] : ""})`;
+
+      const actions = document.createElement("div");
+      actions.className = "wardrobe-actions";
+
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.className = "wardrobe-edit";
+      editBtn.textContent = "수정";
+      editBtn.addEventListener("click", () => startEditWardrobeItem(w));
+
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "wardrobe-del";
+      delBtn.textContent = "삭제";
+      delBtn.addEventListener("click", () => {
+        wardrobe = wardrobe.filter(x => x.id !== w.id);
+        saveWardrobe();
+        if (editingId === w.id) stopEditWardrobeItem();
+        renderWardrobeList();
+        if (anchorMode === "wardrobe") refreshWardrobeAnchorOptions();
+      });
+
+      actions.appendChild(editBtn);
+      actions.appendChild(delBtn);
+      li.appendChild(label);
+      li.appendChild(actions);
+      list.appendChild(li);
+    });
+
+    group.appendChild(list);
+    wardrobeListEl.appendChild(group);
+  });
+}
+
+function refreshWardrobeAnchorOptions() {
+  const candidates = wardrobe.filter(w => w.category === SLOT_LABEL[selectedSlot]);
+  wardrobeAnchorSelect.innerHTML = "";
+  if (!candidates.length) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "옷장에 해당 종류가 없어요. 먼저 추가해주세요.";
+    wardrobeAnchorSelect.appendChild(opt);
+    return;
+  }
+  candidates.forEach(w => {
+    const opt = document.createElement("option");
+    opt.value = w.id;
+    opt.textContent = `${w.itemType} (${w.color}${w.fit ? ", " + FIT_LABELS[w.fit] : ""})`;
+    wardrobeAnchorSelect.appendChild(opt);
+  });
+}
+
+function pickWardrobeItem(category, seed, usedIds, preferFits) {
+  const candidates = wardrobe.filter(w => w.category === category);
+  if (!candidates.length) return null;
+  let pool = candidates.filter(w => !usedIds.has(w.id));
+  if (!pool.length) pool = candidates;
+  if (preferFits && preferFits.length) {
+    const preferred = pool.filter(w => preferFits.includes(w.fit));
+    if (preferred.length) pool = preferred;
+  }
+  const h = hashStr(seed);
+  return pool[h % pool.length];
+}
+
+addWardrobeBtn.addEventListener("click", () => {
+  const itemType = wardrobeItemInput.value.trim();
+  if (!itemType) {
+    setWardrobeStatus("아이템을 입력해주세요.", "error");
+    return;
+  }
+  const color = wardrobeColorInput.value.trim();
+  const fit = FIT_CATEGORIES.has(wardrobeCategory) ? wardrobeFitSelect.value : null;
+
+  if (editingId) {
+    const target = wardrobe.find(w => w.id === editingId);
+    if (target) {
+      target.category = wardrobeCategory;
+      target.itemType = itemType;
+      target.color = color;
+      target.fit = fit;
+    }
+    saveWardrobe();
+    setWardrobeStatus("수정했어요.", null);
+    stopEditWardrobeItem();
+  } else {
+    wardrobe.push({
+      id: `w_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      category: wardrobeCategory,
+      itemType,
+      color,
+      fit
+    });
+    saveWardrobe();
+    wardrobeItemInput.value = "";
+    wardrobeColorInput.value = "";
+    setWardrobeStatus("옷장에 추가했어요.", null);
+  }
+  renderWardrobeList();
+  if (anchorMode === "wardrobe") refreshWardrobeAnchorOptions();
+});
+
+renderWardrobeList();
+
+exportWardrobeBtn.addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(wardrobe, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `wardrobe-backup-${stamp}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  setWardrobeStatus("옷장 데이터를 파일로 내보냈어요.", null);
+});
+
+importWardrobeBtn.addEventListener("click", () => {
+  importWardrobeFile.value = "";
+  importWardrobeFile.click();
+});
+
+importWardrobeFile.addEventListener("change", () => {
+  const file = importWardrobeFile.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      if (!Array.isArray(parsed)) throw new Error("invalid format");
+      const valid = parsed.filter(item => item && typeof item.itemType === "string" && typeof item.category === "string");
+      const existingIds = new Set(wardrobe.map(w => w.id));
+      let added = 0;
+      valid.forEach(item => {
+        let id = item.id;
+        if (!id || existingIds.has(id)) {
+          id = `w_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        }
+        existingIds.add(id);
+        wardrobe.push({ id, category: item.category, itemType: item.itemType, color: item.color || "", fit: item.fit || null });
+        added++;
+      });
+      saveWardrobe();
+      renderWardrobeList();
+      if (anchorMode === "wardrobe") refreshWardrobeAnchorOptions();
+      setWardrobeStatus(`${added}개 아이템을 불러왔어요.`, null);
+    } catch (e) {
+      setWardrobeStatus("파일을 읽지 못했어요. 올바른 백업 파일인지 확인해주세요.", "error");
+    }
+  };
+  reader.readAsText(file);
+});
+
+const OUTFIT_TEMPLATES = {
+  top: [
+    { occasion: "데일리", items: [
+        { category: "하의", name: "와이드 데님 팬츠", colorRole: "fixed", fixed: "데님블루" },
+        { category: "신발", name: "캔버스 스니커즈", colorRole: "fixed", fixed: "화이트" },
+        { category: "액세서리", name: "미니 크로스백", colorRole: "accent" }
+      ], tip: "데님 팬츠로 캐주얼하게 매치하고, 포인트 컬러 가방으로 균형을 잡아보세요." },
+    { occasion: "데이트", items: [
+        { category: "하의", name: "미디 플레어 스커트", colorRole: "neutral" },
+        { category: "신발", name: "메리제인 플랫슈즈", colorRole: "fixed", fixed: "블랙" },
+        { category: "액세서리", name: "미니 숄더백", colorRole: "accent" }
+      ], tip: "플레어 스커트로 러블리하게, 플랫슈즈로 편안함까지 챙겨보세요." },
+    { occasion: "오피스 캐주얼", items: [
+        { category: "하의", name: "슬랙스", colorRole: "neutral" },
+        { category: "아우터", name: "테일러드 블레이저", colorRole: "fixed", fixed: "그레이" },
+        { category: "신발", name: "로퍼", colorRole: "fixed", fixed: "브라운" }
+      ], tip: "블레이저 하나만 더하면 오피스 자리에도 무리 없이 어울려요." }
+  ],
+  bottom: [
+    { occasion: "데일리", items: [
+        { category: "상의", name: "루즈핏 반팔 티셔츠", colorRole: "neutral" },
+        { category: "신발", name: "캔버스 스니커즈", colorRole: "fixed", fixed: "화이트" },
+        { category: "액세서리", name: "볼캡", colorRole: "accent" }
+      ], tip: "루즈핏 티셔츠로 편안하게, 캡 모자로 캐주얼한 무드를 더해보세요." },
+    { occasion: "데이트", items: [
+        { category: "상의", name: "실크 블라우스", colorRole: "neutral" },
+        { category: "신발", name: "스트랩 힐", colorRole: "fixed", fixed: "블랙" },
+        { category: "액세서리", name: "드롭 귀걸이", colorRole: "accent" }
+      ], tip: "실키한 블라우스로 여성스러움을 더하고, 포인트 주얼리로 마무리하세요." },
+    { occasion: "오피스 캐주얼", items: [
+        { category: "상의", name: "셔츠", colorRole: "neutral" },
+        { category: "아우터", name: "자켓", colorRole: "fixed", fixed: "네이비" },
+        { category: "신발", name: "로퍼", colorRole: "fixed", fixed: "브라운" }
+      ], tip: "깔끔한 셔츠와 자켓 조합으로 단정한 오피스룩을 완성해보세요." }
+  ],
+  outer: [
+    { occasion: "데일리", items: [
+        { category: "상의", name: "기본 반팔 티셔츠", colorRole: "neutral" },
+        { category: "하의", name: "청바지", colorRole: "fixed", fixed: "데님블루" },
+        { category: "신발", name: "스니커즈", colorRole: "fixed", fixed: "화이트" }
+      ], tip: "베이직한 티셔츠와 청바지 위에 걸치기만 해도 캐주얼 룩이 완성돼요." },
+    { occasion: "데이트", items: [
+        { category: "상의", name: "니트", colorRole: "neutral" },
+        { category: "하의", name: "미디스커트", colorRole: "accent" },
+        { category: "신발", name: "플랫슈즈", colorRole: "fixed", fixed: "블랙" }
+      ], tip: "니트와 스커트로 부드러운 무드를 만들고 아우터로 포인트를 주세요." },
+    { occasion: "오피스 캐주얼", items: [
+        { category: "상의", name: "블라우스", colorRole: "neutral" },
+        { category: "하의", name: "슬랙스", colorRole: "fixed", fixed: "그레이" },
+        { category: "신발", name: "로퍼", colorRole: "fixed", fixed: "브라운" }
+      ], tip: "단정한 블라우스와 슬랙스 위에 매치하면 신뢰감 있는 오피스룩이 돼요." }
+  ],
+  dress: [
+    { occasion: "데일리", items: [
+        { category: "아우터", name: "데님 자켓", colorRole: "fixed", fixed: "데님블루" },
+        { category: "신발", name: "스니커즈", colorRole: "fixed", fixed: "화이트" },
+        { category: "액세서리", name: "크로스백", colorRole: "accent" }
+      ], tip: "데님 자켓을 걸쳐 캐주얼하게 다운시켜보세요." },
+    { occasion: "데이트", items: [
+        { category: "신발", name: "스트랩 힐", colorRole: "fixed", fixed: "블랙" },
+        { category: "액세서리", name: "클러치백", colorRole: "accent" }
+      ], tip: "원피스 자체로 완성도가 높으니, 힐과 클러치로 우아함을 더해보세요." },
+    { occasion: "오피스 캐주얼", items: [
+        { category: "아우터", name: "블레이저", colorRole: "fixed", fixed: "그레이" },
+        { category: "신발", name: "로퍼", colorRole: "fixed", fixed: "브라운" }
+      ], tip: "블레이저를 더하면 오피스 자리에도 자연스럽게 어울려요." }
+  ]
+};
+
+function resolveColor(raw) {
+  const trimmed = (raw || "").trim();
+  if (!trimmed) {
+    const fallback = COLOR_BY_NAME["아이보리"];
+    return { ...fallback, displayName: fallback.name };
+  }
+  const exact = COLOR_LIBRARY.find(c => c.name === trimmed);
+  if (exact) return { ...exact, displayName: exact.name };
+  const partial = COLOR_LIBRARY.find(c => c.keys.some(k => trimmed.includes(k) || k.includes(trimmed)));
+  if (partial) return { ...partial, displayName: trimmed };
+  return { name: trimmed, hex: "#B5AFA3", family: "neutral", displayName: trimmed };
+}
+
+function applyFitModifier(name, fit) {
+  if (fit === "oversized" || fit === "loose") {
+    if (/슬림|스키니/.test(name)) return name;
+    if (/와이드|루즈/.test(name)) return name.replace(/와이드|루즈/, "슬림");
+    return `슬림 ${name}`;
+  }
+  if (fit === "slim" || fit === "crop") {
+    if (/와이드|루즈/.test(name)) return name;
+    if (/슬림|스키니/.test(name)) return name.replace(/슬림|스키니/, "와이드");
+    return `와이드 ${name}`;
+  }
+  return name;
+}
+
+function hashStr(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+function buildPalette(anchor, seed, avoidNeutrals, avoidAccents) {
+  const neutrals = COLOR_LIBRARY.filter(c => c.family === "neutral" && c.name !== anchor.name);
+  const accents = COLOR_LIBRARY.filter(c => c.family !== "neutral" && c.name !== anchor.name);
+  const freshNeutrals = neutrals.filter(c => !avoidNeutrals.includes(c.name));
+  const freshAccents = accents.filter(c => !avoidAccents.includes(c.name));
+  const neutralPool = freshNeutrals.length ? freshNeutrals : neutrals;
+  const accentPool = freshAccents.length ? freshAccents : accents;
+  const h = hashStr(seed);
+  return {
+    neutral: neutralPool[h % neutralPool.length],
+    accent: accentPool[Math.floor(h / 7) % accentPool.length]
+  };
+}
+
+function generateOutfits({ itemType, slot, colorInfo, fit, useWardrobe, anchorSource }) {
+  const slotLabel = SLOT_LABEL[slot];
+  const oppositeCat = OPPOSITE_CATEGORY[slotLabel];
+  const fitLabel = FIT_LABELS[fit] || FIT_LABELS.regular;
+  const templates = OUTFIT_TEMPLATES[slot];
+  const preferFits = FIT_PREFERENCE[fit] || null;
+  const usedNeutrals = [];
+  const usedAccents = [];
+  const usedWardrobeIds = new Set();
+
+  return templates.map(t => {
+    const palette = buildPalette(colorInfo, `${itemType}__${colorInfo.displayName}__${t.occasion}`, usedNeutrals, usedAccents);
+    usedNeutrals.push(palette.neutral.name);
+    usedAccents.push(palette.accent.name);
+
+    const items = [{ category: slotLabel, name: itemType, color: `${colorInfo.displayName}, ${fitLabel}`, hex: colorInfo.hex, source: anchorSource }];
+    t.items.forEach(role => {
+      let wardrobeItem = null;
+      if (useWardrobe) {
+        const seed = `${itemType}__${role.category}__${t.occasion}`;
+        const preferForThisRole = role.category === oppositeCat ? preferFits : null;
+        wardrobeItem = pickWardrobeItem(role.category, seed, usedWardrobeIds, preferForThisRole);
+      }
+
+      if (wardrobeItem) {
+        usedWardrobeIds.add(wardrobeItem.id);
+        const wColor = resolveColor(wardrobeItem.color);
+        const fitSuffix = wardrobeItem.fit ? `, ${FIT_LABELS[wardrobeItem.fit]}` : "";
+        items.push({ category: role.category, name: wardrobeItem.itemType, color: `${wColor.displayName}${fitSuffix}`, hex: wColor.hex, source: "wardrobe" });
+        return;
+      }
+
+      let colorObj;
+      if (role.colorRole === "neutral") colorObj = palette.neutral;
+      else if (role.colorRole === "accent") colorObj = palette.accent;
+      else colorObj = COLOR_BY_NAME[role.fixed] || palette.neutral;
+      const displayName = (oppositeCat && role.category === oppositeCat) ? applyFitModifier(role.name, fit) : role.name;
+      items.push({ category: role.category, name: displayName, color: colorObj.name, hex: colorObj.hex, source: "recommended" });
+    });
+    const paletteHexes = [...new Set([colorInfo.hex, palette.neutral.hex, palette.accent.hex])];
+    return { occasion: t.occasion, items, palette: paletteHexes, tip: t.tip };
+  });
+}
+
+function getRecommendation() {
+  let itemType, colorInfo, fit;
+
+  if (anchorMode === "wardrobe") {
+    const chosen = wardrobe.find(w => w.id === wardrobeAnchorSelect.value);
+    if (!chosen) {
+      setStatus("옷장에서 기준 아이템을 선택해주세요. (옷장에 해당 종류가 없다면 먼저 추가해주세요)", "error");
+      return;
+    }
+    itemType = chosen.itemType;
+    colorInfo = resolveColor(chosen.color);
+    fit = chosen.fit || "regular";
+  } else {
+    itemType = itemTypeInput.value.trim();
+    if (!itemType) {
+      setStatus("아이템 종류를 입력해주세요. (예: 생지데님, 반팔니트)", "error");
+      return;
+    }
+    colorInfo = resolveColor(colorInput.value);
+    fit = fitSelect.value;
+  }
+
+  setStatus("", null);
+  const outfits = generateOutfits({
+    itemType,
+    slot: selectedSlot,
+    colorInfo,
+    fit,
+    useWardrobe: useWardrobeCheckbox.checked,
+    anchorSource: anchorMode === "wardrobe" ? "wardrobe" : "manual"
+  });
+  renderResults(outfits);
+}
+
+recommendBtn.addEventListener("click", getRecommendation);
+[itemTypeInput, colorInput].forEach(el => {
+  el.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") getRecommendation();
+  });
+});
+</script>
+</body>
+</html>
