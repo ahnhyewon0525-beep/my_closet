@@ -798,6 +798,28 @@ const CATEGORY_SUBTYPES = {
   "패션소품": ["모자", "머플러/스카프", "벨트"],
   "액세서리": ["팔찌", "반지", "목걸이", "시계"]
 };
+const SUBTYPE_STYLE = {
+  "반팔티": "casual", "긴팔티": "casual", "니트": "smart", "셔츠": "smart", "후드티": "casual",
+  "청바지": "casual", "슬랙스": "smart", "반바지": "casual", "긴바지": "casual", "스커트": "smart",
+  "가디건": "smart", "코트": "smart", "야상": "casual", "패딩": "casual", "바람막이": "casual", "자켓": "smart", "집업": "casual",
+  "운동화": "casual", "부츠": "casual", "슬리퍼": "casual", "구두": "smart",
+  "크로스백": "casual", "숄더백": "smart", "백팩": "casual",
+  "모자": "casual", "머플러": "smart", "스카프": "smart", "벨트": "smart",
+  "팔찌": "casual", "반지": "smart", "목걸이": "smart", "시계": "smart"
+};
+
+function getStyleTier(subtype) {
+  return subtype ? (SUBTYPE_STYLE[subtype] || null) : null;
+}
+
+function inferSubtype(text, category) {
+  const subtypes = CATEGORY_SUBTYPES[category] || [];
+  for (const st of subtypes) {
+    if (st.split("/").some(part => text.includes(part))) return st;
+  }
+  return null;
+}
+
 const FIT_PREFERENCE = {
   oversized: ["slim", "regular"],
   loose: ["slim", "regular"],
@@ -1170,15 +1192,17 @@ function refreshWardrobeAnchorOptions() {
   });
 }
 
-function pickWardrobeItem(items, category, seed, usedIds, preferFits) {
+function pickWardrobeItem(items, category, seed, usedIds, preferences) {
   const candidates = items.filter(w => w.category === category);
   if (!candidates.length) return null;
   let pool = candidates.filter(w => !usedIds.has(w.id));
   if (!pool.length) pool = candidates;
-  if (preferFits && preferFits.length) {
-    const preferred = pool.filter(w => preferFits.includes(w.fit));
-    if (preferred.length) pool = preferred;
-  }
+  // Each preference narrows the pool further, but only if it doesn't wipe it out -
+  // that way missing data (no fit/subtype recorded) just falls back gracefully.
+  (preferences || []).forEach(pred => {
+    const narrowed = pool.filter(pred);
+    if (narrowed.length) pool = narrowed;
+  });
   const h = hashStr(seed);
   return pool[h % pool.length];
 }
@@ -1395,12 +1419,13 @@ function buildPalette(anchor, seed, avoidNeutrals, avoidAccents) {
   };
 }
 
-function generateOutfits({ itemType, slot, colorInfo, fit, useWardrobe, anchorSource, sourceUserName, refItems }) {
+function generateOutfits({ itemType, slot, colorInfo, fit, useWardrobe, anchorSource, sourceUserName, refItems, anchorSubtype }) {
   const slotLabel = SLOT_LABEL[slot];
   const oppositeCat = OPPOSITE_CATEGORY[slotLabel];
   const fitLabel = FIT_LABELS[fit] || FIT_LABELS.regular;
   const templates = OUTFIT_TEMPLATES[slot];
   const preferFits = FIT_PREFERENCE[fit] || null;
+  const anchorStyleTier = getStyleTier(anchorSubtype);
   const usedNeutrals = [];
   const usedAccents = [];
   const usedWardrobeIds = new Set();
@@ -1418,8 +1443,14 @@ function generateOutfits({ itemType, slot, colorInfo, fit, useWardrobe, anchorSo
       let wardrobeItem = null;
       if (useWardrobe && refItems && refItems.length) {
         const seed = `${itemType}__${role.category}__${t.occasion}`;
-        const preferForThisRole = role.category === oppositeCat ? preferFits : null;
-        wardrobeItem = pickWardrobeItem(refItems, role.category, seed, usedWardrobeIds, preferForThisRole);
+        const preferences = [];
+        if (role.category === oppositeCat && preferFits) {
+          preferences.push(w => preferFits.includes(w.fit));
+        }
+        if (anchorStyleTier) {
+          preferences.push(w => getStyleTier(w.subtype) === anchorStyleTier);
+        }
+        wardrobeItem = pickWardrobeItem(refItems, role.category, seed, usedWardrobeIds, preferences);
       }
 
       if (wardrobeItem) {
@@ -1443,7 +1474,7 @@ function generateOutfits({ itemType, slot, colorInfo, fit, useWardrobe, anchorSo
 }
 
 function getRecommendation() {
-  let itemType, colorInfo, fit;
+  let itemType, colorInfo, fit, anchorSubtype;
   const refUser = getReferenceUser();
 
   if (anchorMode === "wardrobe") {
@@ -1456,6 +1487,7 @@ function getRecommendation() {
     itemType = chosen.itemType;
     colorInfo = resolveColor(chosen.color);
     fit = chosen.fit || "regular";
+    anchorSubtype = chosen.subtype || null;
   } else {
     itemType = itemTypeInput.value.trim();
     if (!itemType) {
@@ -1464,6 +1496,7 @@ function getRecommendation() {
     }
     colorInfo = resolveColor(colorInput.value);
     fit = fitSelect.value;
+    anchorSubtype = inferSubtype(itemType, SLOT_LABEL[selectedSlot]);
   }
 
   setStatus("", null);
@@ -1475,7 +1508,8 @@ function getRecommendation() {
     useWardrobe: useWardrobeCheckbox.checked && !!refUser,
     anchorSource: anchorMode === "wardrobe" ? "wardrobe" : "manual",
     sourceUserName: refUser ? refUser.name : null,
-    refItems: refUser ? refUser.items : []
+    refItems: refUser ? refUser.items : [],
+    anchorSubtype
   });
   renderResults(outfits);
 }
