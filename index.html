@@ -965,14 +965,14 @@ async function initCloudSync() {
     const cloudUsers = Array.isArray(data.users) ? data.users : null;
     const cloudLegacyItems = Array.isArray(data.items) ? data.items : null;
 
-    if (cloudUsers) {
+    if (cloudUsers && cloudUsers.length > 0) {
       users = cloudUsers;
       localStorage.setItem(USERS_KEY, JSON.stringify(users));
       pendingMigrationItems = [];
       if (!users.some(u => u.id === activeWardrobeUserId)) {
         activeWardrobeUserId = users.length ? users[0].id : null;
       }
-    } else if (cloudLegacyItems && users.length === 0) {
+    } else if (cloudLegacyItems && cloudLegacyItems.length > 0 && users.length === 0) {
       pendingMigrationItems = cloudLegacyItems;
     }
 
@@ -984,7 +984,10 @@ async function initCloudSync() {
 
   savedOutfitsDocRef.onSnapshot(snap => {
     if (!snap.exists) return;
-    const cloudSaved = snap.data().items || [];
+    const cloudSaved = Array.isArray(snap.data().items) ? snap.data().items : [];
+    // Same guard as the wardrobe listener: an empty/incomplete snapshot must
+    // never blank out saved outfits we already have locally.
+    if (cloudSaved.length === 0 && savedOutfits.length > 0) return;
     savedOutfits = cloudSaved;
     localStorage.setItem(SAVED_OUTFITS_KEY, JSON.stringify(savedOutfits));
     renderSavedOutfits();
