@@ -443,9 +443,12 @@
 
   <div id="userWardrobePanels">
   <div class="panel">
-    <div style="display:flex; align-items:center; justify-content:space-between;">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
       <h2 id="wardrobeFormTitle" style="margin:0;">내 옷장에 추가</h2>
-      <button type="button" class="wardrobe-del" id="deleteUserBtn">이 사용자 삭제</button>
+      <div style="display:flex; gap:4px; flex-shrink:0;">
+        <button type="button" class="wardrobe-edit" id="renameUserBtn">이름 수정</button>
+        <button type="button" class="wardrobe-del" id="deleteUserBtn">이 사용자 삭제</button>
+      </div>
     </div>
 
     <div class="field">
@@ -548,6 +551,7 @@ const exportWardrobeBtn = document.getElementById("exportWardrobeBtn");
 const importWardrobeBtn = document.getElementById("importWardrobeBtn");
 const importWardrobeFile = document.getElementById("importWardrobeFile");
 const deleteUserBtn = document.getElementById("deleteUserBtn");
+const renameUserBtn = document.getElementById("renameUserBtn");
 
 const userTabsBar = document.getElementById("userTabsBar");
 const newUserNameInput = document.getElementById("newUserNameInput");
@@ -1079,6 +1083,19 @@ deleteUserBtn.addEventListener("click", () => {
   users = users.filter(u => u.id !== user.id);
   if (editingId) stopEditWardrobeItem();
   activeWardrobeUserId = users.length ? users[0].id : null;
+  saveUsers();
+  renderUserTabs();
+  renderReferenceUserOptions();
+});
+
+renameUserBtn.addEventListener("click", () => {
+  const user = getActiveWardrobeUser();
+  if (!user) return;
+  const newName = prompt("새 이름을 입력해주세요.", user.name);
+  if (newName === null) return;
+  const trimmed = newName.trim();
+  if (!trimmed || trimmed === user.name) return;
+  user.name = trimmed;
   saveUsers();
   renderUserTabs();
   renderReferenceUserOptions();
