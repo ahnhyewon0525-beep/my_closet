@@ -6,13 +6,13 @@
 <title>코디 추천</title>
 <style>
   :root {
-    --ivory: #f7f3ec;
-    --ivory-deep: #efe8db;
+    --ivory: #FAF8F5;
+    --ivory-deep: #F0EAE0;
     --line: #e2d9c8;
     --ink: #3a3530;
     --ink-soft: #7a7166;
-    --accent: #b08c5e;
-    --accent-dark: #8f6f43;
+    --accent: #8B6F47;
+    --accent-dark: #6E5636;
     --error: #b5453a;
     --error-bg: #fbeceb;
   }
@@ -214,14 +214,14 @@
 
   button.small {
     padding: 9px 16px;
-    background: var(--ink);
+    background: var(--accent);
     color: #fff;
     border: none;
     border-radius: 8px;
     font-size: 13px;
     cursor: pointer;
   }
-  button.small:hover { background: #000; }
+  button.small:hover { background: var(--accent-dark); }
 
   .status-line {
     margin-top: 14px;
@@ -295,6 +295,24 @@
     margin: 0;
   }
 
+  .card-action-btn {
+    margin-top: 4px;
+    padding: 9px 12px;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    background: none;
+    color: var(--accent-dark);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .card-action-btn:hover:not(:disabled) { background: var(--ivory-deep); }
+  .card-action-btn:disabled { opacity: 0.6; cursor: default; }
+  .card-action-del { border-color: var(--error); color: var(--error); }
+  .card-action-del:hover { background: var(--error-bg); }
+
+  .saved-meta { font-size: 11.5px; color: var(--ink-soft); }
+
   footer {
     text-align: center;
     margin-top: 40px;
@@ -313,6 +331,7 @@
   <div class="main-tabs" id="mainTabs">
     <button type="button" class="main-tab-btn active" data-maintab="recommend">코디 추천</button>
     <button type="button" class="main-tab-btn" data-maintab="wardrobe">옷장 관리</button>
+    <button type="button" class="main-tab-btn" data-maintab="saved">저장한 코디</button>
   </div>
 
   <div id="tabRecommend" class="tab-content">
@@ -393,8 +412,15 @@
         <button type="button" class="seg-btn" data-cat="아우터">아우터</button>
         <button type="button" class="seg-btn" data-cat="원피스">원피스</button>
         <button type="button" class="seg-btn" data-cat="신발">신발</button>
+        <button type="button" class="seg-btn" data-cat="가방">가방</button>
+        <button type="button" class="seg-btn" data-cat="패션소품">패션소품</button>
         <button type="button" class="seg-btn" data-cat="액세서리">액세서리</button>
       </div>
+    </div>
+
+    <div class="field" id="wardrobeSubtypeField">
+      <label for="wardrobeSubtypeSelect">세부 종류</label>
+      <select id="wardrobeSubtypeSelect"></select>
     </div>
 
     <div class="field-grid">
@@ -436,6 +462,13 @@
   </div>
   </div>
 
+  <div id="tabSaved" class="tab-content" style="display:none;">
+  <div class="panel">
+    <h2>저장한 코디</h2>
+    <div class="results" id="savedResults"></div>
+  </div>
+  </div>
+
   <footer>인터넷 연결이나 서버 없이, 브라우저에만 저장되고 즉시 계산됩니다.</footer>
 </div>
 
@@ -456,6 +489,8 @@ const wardrobeItemInput = document.getElementById("wardrobeItemInput");
 const wardrobeColorInput = document.getElementById("wardrobeColorInput");
 const wardrobeFitField = document.getElementById("wardrobeFitField");
 const wardrobeFitSelect = document.getElementById("wardrobeFitSelect");
+const wardrobeSubtypeField = document.getElementById("wardrobeSubtypeField");
+const wardrobeSubtypeSelect = document.getElementById("wardrobeSubtypeSelect");
 const addWardrobeBtn = document.getElementById("addWardrobeBtn");
 const cancelEditBtn = document.getElementById("cancelEditBtn");
 const wardrobeFormTitle = document.getElementById("wardrobeFormTitle");
@@ -466,7 +501,11 @@ const importWardrobeBtn = document.getElementById("importWardrobeBtn");
 const importWardrobeFile = document.getElementById("importWardrobeFile");
 
 const mainTabButtons = document.querySelectorAll("#mainTabs .main-tab-btn");
-const tabContents = { recommend: document.getElementById("tabRecommend"), wardrobe: document.getElementById("tabWardrobe") };
+const tabContents = {
+  recommend: document.getElementById("tabRecommend"),
+  wardrobe: document.getElementById("tabWardrobe"),
+  saved: document.getElementById("tabSaved")
+};
 mainTabButtons.forEach(btn => {
   btn.addEventListener("click", () => {
     mainTabButtons.forEach(b => b.classList.remove("active"));
@@ -507,6 +546,26 @@ let wardrobeCategory = "상의";
 makeSegmentedGroup("wardrobeCategorySelect", (data) => {
   wardrobeCategory = data.cat;
   wardrobeFitField.style.display = FIT_CATEGORIES.has(wardrobeCategory) ? "" : "none";
+  refreshWardrobeSubtypeOptions();
+});
+
+function refreshWardrobeSubtypeOptions(selected) {
+  const subtypes = CATEGORY_SUBTYPES[wardrobeCategory] || [];
+  wardrobeSubtypeField.style.display = subtypes.length ? "" : "none";
+  wardrobeSubtypeSelect.innerHTML = "";
+  subtypes.forEach(subtype => {
+    const opt = document.createElement("option");
+    opt.value = subtype;
+    opt.textContent = subtype;
+    wardrobeSubtypeSelect.appendChild(opt);
+  });
+  if (selected && subtypes.includes(selected)) wardrobeSubtypeSelect.value = selected;
+}
+
+wardrobeSubtypeSelect.addEventListener("change", () => {
+  if (!wardrobeItemInput.value.trim()) {
+    wardrobeItemInput.value = wardrobeSubtypeSelect.value;
+  }
 });
 
 function setStatus(message, type) {
@@ -520,54 +579,82 @@ function setWardrobeStatus(message, type) {
 }
 
 const CATEGORY_LABELS = {
-  "상의": "상의", "하의": "하의", "아우터": "아우터", "신발": "신발", "액세서리": "액세서리",
+  "상의": "상의", "하의": "하의", "아우터": "아우터", "신발": "신발", "가방": "가방", "패션소품": "패션소품", "액세서리": "액세서리",
   "top": "상의", "bottom": "하의", "outer": "아우터", "shoes": "신발", "accessory": "액세서리"
 };
+
+function createOutfitCard(outfit, opts) {
+  opts = opts || {};
+  const card = document.createElement("div");
+  card.className = "card";
+
+  const occasion = document.createElement("div");
+  occasion.className = "occasion";
+  occasion.textContent = outfit.occasion || "코디";
+  card.appendChild(occasion);
+
+  const list = document.createElement("ul");
+  list.className = "item-list";
+  (outfit.items || []).forEach(item => {
+    const li = document.createElement("li");
+    const catLabel = CATEGORY_LABELS[item.category] || item.category || "";
+    let tag = "";
+    if (item.source === "wardrobe") tag = '<span class="tag tag-wardrobe">내 옷장</span>';
+    else if (item.source === "recommended") tag = '<span class="tag tag-recommended">추천템</span>';
+    li.innerHTML = `<span class="cat">${catLabel}</span><span class="desc">${item.name || ""} <span class="color-name">(${item.color || ""})</span>${tag}</span>`;
+    list.appendChild(li);
+  });
+  card.appendChild(list);
+
+  if (Array.isArray(outfit.palette) && outfit.palette.length) {
+    const palette = document.createElement("div");
+    palette.className = "palette";
+    outfit.palette.forEach(hex => {
+      const sw = document.createElement("div");
+      sw.className = "swatch";
+      sw.style.backgroundColor = /^#[0-9a-fA-F]{3,6}$/.test(hex) ? hex : "#ccc";
+      sw.title = hex;
+      palette.appendChild(sw);
+    });
+    card.appendChild(palette);
+  }
+
+  if (outfit.tip) {
+    const tip = document.createElement("p");
+    tip.className = "tip";
+    tip.textContent = outfit.tip;
+    card.appendChild(tip);
+  }
+
+  if (opts.onSave) {
+    const saveBtn = document.createElement("button");
+    saveBtn.type = "button";
+    saveBtn.className = "card-action-btn";
+    saveBtn.textContent = "이 코디 저장하기";
+    saveBtn.addEventListener("click", () => {
+      opts.onSave();
+      saveBtn.textContent = "저장됨";
+      saveBtn.disabled = true;
+    });
+    card.appendChild(saveBtn);
+  }
+
+  if (opts.onDelete) {
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "card-action-btn card-action-del";
+    delBtn.textContent = "삭제";
+    delBtn.addEventListener("click", opts.onDelete);
+    card.appendChild(delBtn);
+  }
+
+  return card;
+}
 
 function renderResults(outfits) {
   resultsEl.innerHTML = "";
   outfits.forEach(outfit => {
-    const card = document.createElement("div");
-    card.className = "card";
-
-    const occasion = document.createElement("div");
-    occasion.className = "occasion";
-    occasion.textContent = outfit.occasion || "코디";
-    card.appendChild(occasion);
-
-    const list = document.createElement("ul");
-    list.className = "item-list";
-    (outfit.items || []).forEach(item => {
-      const li = document.createElement("li");
-      const catLabel = CATEGORY_LABELS[item.category] || item.category || "";
-      let tag = "";
-      if (item.source === "wardrobe") tag = '<span class="tag tag-wardrobe">내 옷장</span>';
-      else if (item.source === "recommended") tag = '<span class="tag tag-recommended">추천템</span>';
-      li.innerHTML = `<span class="cat">${catLabel}</span><span class="desc">${item.name || ""} <span class="color-name">(${item.color || ""})</span>${tag}</span>`;
-      list.appendChild(li);
-    });
-    card.appendChild(list);
-
-    if (Array.isArray(outfit.palette) && outfit.palette.length) {
-      const palette = document.createElement("div");
-      palette.className = "palette";
-      outfit.palette.forEach(hex => {
-        const sw = document.createElement("div");
-        sw.className = "swatch";
-        sw.style.backgroundColor = /^#[0-9a-fA-F]{3,6}$/.test(hex) ? hex : "#ccc";
-        sw.title = hex;
-        palette.appendChild(sw);
-      });
-      card.appendChild(palette);
-    }
-
-    if (outfit.tip) {
-      const tip = document.createElement("p");
-      tip.className = "tip";
-      tip.textContent = outfit.tip;
-      card.appendChild(tip);
-    }
-
+    const card = createOutfitCard(outfit, { onSave: () => saveOutfit(outfit) });
     resultsEl.appendChild(card);
   });
 }
@@ -604,7 +691,17 @@ const SLOT_LABEL = { top: "상의", bottom: "하의", outer: "아우터", dress:
 const OPPOSITE_CATEGORY = { "상의": "하의", "하의": "상의" };
 const FIT_LABELS = { regular: "레귤러핏", slim: "슬림핏", loose: "루즈핏", oversized: "오버사이즈핏", crop: "크롭핏" };
 const FIT_CATEGORIES = new Set(["상의", "하의", "아우터", "원피스"]);
-const WARDROBE_CATEGORIES = ["상의", "하의", "아우터", "원피스", "신발", "액세서리"];
+const WARDROBE_CATEGORIES = ["상의", "하의", "아우터", "원피스", "신발", "가방", "패션소품", "액세서리"];
+const CATEGORY_SUBTYPES = {
+  "상의": ["반팔티", "긴팔티", "니트", "셔츠", "후드티"],
+  "하의": ["청바지", "슬랙스", "반바지", "긴바지", "스커트"],
+  "아우터": ["가디건", "코트", "야상", "패딩", "바람막이", "자켓", "집업"],
+  "원피스": [],
+  "신발": ["운동화", "부츠", "슬리퍼", "구두"],
+  "가방": ["크로스백", "숄더백", "백팩"],
+  "패션소품": ["모자", "머플러/스카프", "벨트"],
+  "액세서리": ["팔찌", "반지", "목걸이", "시계"]
+};
 const FIT_PREFERENCE = {
   oversized: ["slim", "regular"],
   loose: ["slim", "regular"],
@@ -630,6 +727,65 @@ function saveWardrobe() {
 
 let wardrobe = loadWardrobe();
 
+const SAVED_OUTFITS_KEY = "coordi_saved_outfits_v1";
+const savedResultsEl = document.getElementById("savedResults");
+
+function loadSavedOutfits() {
+  try {
+    const raw = localStorage.getItem(SAVED_OUTFITS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveSavedOutfits() {
+  localStorage.setItem(SAVED_OUTFITS_KEY, JSON.stringify(savedOutfits));
+}
+
+let savedOutfits = loadSavedOutfits();
+
+function saveOutfit(outfit) {
+  savedOutfits.unshift({
+    id: `sv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    savedAt: new Date().toISOString(),
+    occasion: outfit.occasion,
+    items: outfit.items,
+    palette: outfit.palette,
+    tip: outfit.tip
+  });
+  saveSavedOutfits();
+  renderSavedOutfits();
+}
+
+function renderSavedOutfits() {
+  savedResultsEl.innerHTML = "";
+  if (!savedOutfits.length) {
+    const empty = document.createElement("p");
+    empty.className = "wardrobe-empty";
+    empty.textContent = "아직 저장한 코디가 없어요. \"코디 추천\" 탭에서 마음에 드는 코디를 저장해보세요.";
+    savedResultsEl.appendChild(empty);
+    return;
+  }
+  savedOutfits.forEach(saved => {
+    const card = createOutfitCard(saved, {
+      onDelete: () => {
+        savedOutfits = savedOutfits.filter(s => s.id !== saved.id);
+        saveSavedOutfits();
+        renderSavedOutfits();
+      }
+    });
+    const meta = document.createElement("p");
+    meta.className = "saved-meta";
+    meta.textContent = `저장일: ${saved.savedAt ? saved.savedAt.slice(0, 10) : ""}`;
+    card.insertBefore(meta, card.firstChild);
+    savedResultsEl.appendChild(card);
+  });
+}
+
+renderSavedOutfits();
+
 let editingId = null;
 
 function startEditWardrobeItem(w) {
@@ -638,6 +794,7 @@ function startEditWardrobeItem(w) {
   catButtons.forEach(b => b.classList.toggle("active", b.dataset.cat === w.category));
   wardrobeCategory = w.category;
   wardrobeFitField.style.display = FIT_CATEGORIES.has(wardrobeCategory) ? "" : "none";
+  refreshWardrobeSubtypeOptions(w.subtype);
   wardrobeItemInput.value = w.itemType;
   wardrobeColorInput.value = w.color;
   wardrobeFitSelect.value = w.fit || "regular";
@@ -653,6 +810,7 @@ function stopEditWardrobeItem() {
   wardrobeItemInput.value = "";
   wardrobeColorInput.value = "";
   wardrobeFitSelect.value = "regular";
+  refreshWardrobeSubtypeOptions();
   wardrobeFormTitle.textContent = "내 옷장에 추가";
   addWardrobeBtn.textContent = "옷장에 추가";
   cancelEditBtn.style.display = "none";
@@ -689,7 +847,8 @@ function renderWardrobeList() {
       const li = document.createElement("li");
       li.className = "wardrobe-item";
       const label = document.createElement("span");
-      label.textContent = `${w.itemType} (${w.color}${w.fit ? ", " + FIT_LABELS[w.fit] : ""})`;
+      const subtypeTag = w.subtype ? `[${w.subtype}] ` : "";
+      label.textContent = `${subtypeTag}${w.itemType} (${w.color}${w.fit ? ", " + FIT_LABELS[w.fit] : ""})`;
 
       const actions = document.createElement("div");
       actions.className = "wardrobe-actions";
@@ -763,11 +922,13 @@ addWardrobeBtn.addEventListener("click", () => {
   }
   const color = wardrobeColorInput.value.trim();
   const fit = FIT_CATEGORIES.has(wardrobeCategory) ? wardrobeFitSelect.value : null;
+  const subtype = (CATEGORY_SUBTYPES[wardrobeCategory] || []).length ? wardrobeSubtypeSelect.value : null;
 
   if (editingId) {
     const target = wardrobe.find(w => w.id === editingId);
     if (target) {
       target.category = wardrobeCategory;
+      target.subtype = subtype;
       target.itemType = itemType;
       target.color = color;
       target.fit = fit;
@@ -779,6 +940,7 @@ addWardrobeBtn.addEventListener("click", () => {
     wardrobe.push({
       id: `w_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       category: wardrobeCategory,
+      subtype,
       itemType,
       color,
       fit
@@ -793,6 +955,7 @@ addWardrobeBtn.addEventListener("click", () => {
 });
 
 renderWardrobeList();
+refreshWardrobeSubtypeOptions();
 
 exportWardrobeBtn.addEventListener("click", () => {
   const blob = new Blob([JSON.stringify(wardrobe, null, 2)], { type: "application/json" });
@@ -847,12 +1010,12 @@ const OUTFIT_TEMPLATES = {
     { occasion: "데일리", items: [
         { category: "하의", name: "와이드 데님 팬츠", colorRole: "fixed", fixed: "데님블루" },
         { category: "신발", name: "캔버스 스니커즈", colorRole: "fixed", fixed: "화이트" },
-        { category: "액세서리", name: "미니 크로스백", colorRole: "accent" }
+        { category: "가방", name: "미니 크로스백", colorRole: "accent" }
       ], tip: "데님 팬츠로 캐주얼하게 매치하고, 포인트 컬러 가방으로 균형을 잡아보세요." },
     { occasion: "데이트", items: [
         { category: "하의", name: "미디 플레어 스커트", colorRole: "neutral" },
         { category: "신발", name: "메리제인 플랫슈즈", colorRole: "fixed", fixed: "블랙" },
-        { category: "액세서리", name: "미니 숄더백", colorRole: "accent" }
+        { category: "가방", name: "미니 숄더백", colorRole: "accent" }
       ], tip: "플레어 스커트로 러블리하게, 플랫슈즈로 편안함까지 챙겨보세요." },
     { occasion: "오피스 캐주얼", items: [
         { category: "하의", name: "슬랙스", colorRole: "neutral" },
@@ -864,7 +1027,7 @@ const OUTFIT_TEMPLATES = {
     { occasion: "데일리", items: [
         { category: "상의", name: "루즈핏 반팔 티셔츠", colorRole: "neutral" },
         { category: "신발", name: "캔버스 스니커즈", colorRole: "fixed", fixed: "화이트" },
-        { category: "액세서리", name: "볼캡", colorRole: "accent" }
+        { category: "패션소품", name: "볼캡", colorRole: "accent" }
       ], tip: "루즈핏 티셔츠로 편안하게, 캡 모자로 캐주얼한 무드를 더해보세요." },
     { occasion: "데이트", items: [
         { category: "상의", name: "실크 블라우스", colorRole: "neutral" },
@@ -898,11 +1061,11 @@ const OUTFIT_TEMPLATES = {
     { occasion: "데일리", items: [
         { category: "아우터", name: "데님 자켓", colorRole: "fixed", fixed: "데님블루" },
         { category: "신발", name: "스니커즈", colorRole: "fixed", fixed: "화이트" },
-        { category: "액세서리", name: "크로스백", colorRole: "accent" }
+        { category: "가방", name: "크로스백", colorRole: "accent" }
       ], tip: "데님 자켓을 걸쳐 캐주얼하게 다운시켜보세요." },
     { occasion: "데이트", items: [
         { category: "신발", name: "스트랩 힐", colorRole: "fixed", fixed: "블랙" },
-        { category: "액세서리", name: "클러치백", colorRole: "accent" }
+        { category: "가방", name: "클러치백", colorRole: "accent" }
       ], tip: "원피스 자체로 완성도가 높으니, 힐과 클러치로 우아함을 더해보세요." },
     { occasion: "오피스 캐주얼", items: [
         { category: "아우터", name: "블레이저", colorRole: "fixed", fixed: "그레이" },
