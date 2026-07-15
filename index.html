@@ -29,6 +29,8 @@
   header { text-align: center; margin-bottom: 24px; }
   header h1 { font-size: 28px; margin: 0 0 8px; letter-spacing: -0.02em; }
   header p { margin: 0; color: var(--ink-soft); font-size: 14px; }
+  .sync-status { margin-top: 8px !important; font-size: 12px !important; }
+  .sync-status.error { color: var(--error); }
 
   .main-tabs {
     display: flex;
@@ -320,12 +322,15 @@
     color: var(--ink-soft);
   }
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 </head>
 <body>
 <div class="wrap">
   <header>
     <h1>코디 추천</h1>
     <p>종류·아이템·색상·핏을 입력하면, 상황별 코디 3가지를 제안해드려요.</p>
+    <p class="sync-status" id="syncStatus"></p>
   </header>
 
   <div class="main-tabs" id="mainTabs">
@@ -452,7 +457,7 @@
 
   <div class="panel">
     <h2>내 옷장 목록</h2>
-    <p class="form-hint">주소(URL)가 바뀌면 옷장 데이터가 새로 시작될 수 있어요. 내보내기로 백업해두고, 다른 주소에서는 불러오기로 복원하세요.</p>
+    <p class="form-hint">옷장은 클라우드에 자동 저장되어 어떤 브라우저·기기에서 접속해도 유지됩니다. 내보내기/불러오기는 별도 백업용으로 사용하세요.</p>
     <div class="wardrobe-backup-row">
       <button class="small" id="exportWardrobeBtn">내보내기 (백업)</button>
       <button class="small" id="importWardrobeBtn" style="background:var(--ink-soft);">불러오기 (복원)</button>
@@ -469,7 +474,7 @@
   </div>
   </div>
 
-  <footer>인터넷 연결이나 서버 없이, 브라우저에만 저장되고 즉시 계산됩니다.</footer>
+  <footer>코디 계산은 브라우저에서 즉시 이루어지고, 옷장·저장한 코디는 클라우드에 자동 동기화됩니다.</footer>
 </div>
 
 <script>
@@ -709,6 +714,26 @@ const FIT_PREFERENCE = {
   crop: ["loose", "oversized", "regular"]
 };
 
+const firebaseConfig = {
+  apiKey: "AIzaSyACJGHC8KEiWfVXkYNmqYNergu4VMxr_J0",
+  authDomain: "my-closet-94481.firebaseapp.com",
+  projectId: "my-closet-94481",
+  storageBucket: "my-closet-94481.firebasestorage.app",
+  messagingSenderId: "1027597617669",
+  appId: "1:1027597617669:web:7c5b647e4f0adf412d6a6c",
+  measurementId: "G-FDJKWPBCKF"
+};
+firebase.initializeApp(firebaseConfig);
+const cloudDb = firebase.firestore();
+const wardrobeDocRef = cloudDb.collection("closet").doc("wardrobe");
+const savedOutfitsDocRef = cloudDb.collection("closet").doc("savedOutfits");
+
+const syncStatusEl = document.getElementById("syncStatus");
+function setSyncStatus(message, type) {
+  syncStatusEl.textContent = message || "";
+  syncStatusEl.className = "sync-status" + (type === "error" ? " error" : "");
+}
+
 const WARDROBE_KEY = "coordi_wardrobe_v1";
 
 function loadWardrobe() {
@@ -723,6 +748,9 @@ function loadWardrobe() {
 
 function saveWardrobe() {
   localStorage.setItem(WARDROBE_KEY, JSON.stringify(wardrobe));
+  wardrobeDocRef.set({ items: wardrobe })
+    .then(() => setSyncStatus("☁️ 클라우드에 동기화됨"))
+    .catch(() => setSyncStatus("⚠️ 오프라인 - 이 브라우저에만 저장됨", "error"));
 }
 
 let wardrobe = loadWardrobe();
@@ -742,9 +770,44 @@ function loadSavedOutfits() {
 
 function saveSavedOutfits() {
   localStorage.setItem(SAVED_OUTFITS_KEY, JSON.stringify(savedOutfits));
+  savedOutfitsDocRef.set({ items: savedOutfits })
+    .then(() => setSyncStatus("☁️ 클라우드에 동기화됨"))
+    .catch(() => setSyncStatus("⚠️ 오프라인 - 이 브라우저에만 저장됨", "error"));
 }
 
 let savedOutfits = loadSavedOutfits();
+
+async function initCloudSync() {
+  setSyncStatus("☁️ 동기화 확인 중...");
+  try {
+    const [wardrobeSnap, savedSnap] = await Promise.all([wardrobeDocRef.get(), savedOutfitsDocRef.get()]);
+
+    // Never let an empty cloud document silently wipe out non-empty local data
+    // (e.g. a brand-new/reset cloud doc) - the richer side always wins.
+    const cloudWardrobe = wardrobeSnap.exists ? (wardrobeSnap.data().items || []) : [];
+    if (cloudWardrobe.length > 0) {
+      wardrobe = cloudWardrobe;
+      localStorage.setItem(WARDROBE_KEY, JSON.stringify(wardrobe));
+    } else if (wardrobe.length > 0) {
+      await wardrobeDocRef.set({ items: wardrobe });
+    }
+
+    const cloudSaved = savedSnap.exists ? (savedSnap.data().items || []) : [];
+    if (cloudSaved.length > 0) {
+      savedOutfits = cloudSaved;
+      localStorage.setItem(SAVED_OUTFITS_KEY, JSON.stringify(savedOutfits));
+    } else if (savedOutfits.length > 0) {
+      await savedOutfitsDocRef.set({ items: savedOutfits });
+    }
+
+    renderWardrobeList();
+    renderSavedOutfits();
+    if (anchorMode === "wardrobe") refreshWardrobeAnchorOptions();
+    setSyncStatus("☁️ 클라우드에 동기화됨");
+  } catch (e) {
+    setSyncStatus("⚠️ 오프라인 - 이 브라우저에만 저장됨", "error");
+  }
+}
 
 function saveOutfit(outfit) {
   savedOutfits.unshift({
@@ -829,8 +892,15 @@ function renderWardrobeList() {
   }
 
   WARDROBE_CATEGORIES.forEach(category => {
-    const items = wardrobe.filter(w => w.category === category);
-    if (!items.length) return;
+    const rawItems = wardrobe.filter(w => w.category === category);
+    if (!rawItems.length) return;
+
+    const subtypeOrder = CATEGORY_SUBTYPES[category] || [];
+    const items = [...rawItems].sort((a, b) => {
+      const aIdx = a.subtype ? subtypeOrder.indexOf(a.subtype) : -1;
+      const bIdx = b.subtype ? subtypeOrder.indexOf(b.subtype) : -1;
+      return (aIdx === -1 ? Infinity : aIdx) - (bIdx === -1 ? Infinity : bIdx);
+    });
 
     const group = document.createElement("div");
     group.className = "wardrobe-group";
@@ -1205,6 +1275,8 @@ recommendBtn.addEventListener("click", getRecommendation);
     if (e.key === "Enter") getRecommendation();
   });
 });
+
+initCloudSync();
 </script>
 </body>
 </html>
