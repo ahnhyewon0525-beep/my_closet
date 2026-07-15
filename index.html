@@ -942,7 +942,7 @@ async function initCloudSync() {
       savedOutfits = cloudSaved;
       localStorage.setItem(SAVED_OUTFITS_KEY, JSON.stringify(savedOutfits));
     } else if (savedOutfits.length > 0) {
-      await savedOutfitsDocRef.set({ items: savedOutfits });
+      await savedOutfitsDocRef.set({ items: savedOutfits }, { merge: true });
     }
 
     renderUserTabs();
@@ -953,6 +953,42 @@ async function initCloudSync() {
   } catch (e) {
     setSyncStatus("⚠️ 오프라인 - 이 브라우저에만 저장됨", "error");
   }
+
+  // One-time get() above only catches the state at page-load time. Without a
+  // live listener, a change made in another browser/tab would never show up
+  // here until this page is manually reloaded - which is what "수정이 다른
+  // 브라우저에 반영이 안 된다" turned out to mean. These listeners keep every
+  // open tab converging on the latest cloud state automatically.
+  wardrobeDocRef.onSnapshot(snap => {
+    if (!snap.exists) return;
+    const data = snap.data();
+    const cloudUsers = Array.isArray(data.users) ? data.users : null;
+    const cloudLegacyItems = Array.isArray(data.items) ? data.items : null;
+
+    if (cloudUsers) {
+      users = cloudUsers;
+      localStorage.setItem(USERS_KEY, JSON.stringify(users));
+      pendingMigrationItems = [];
+      if (!users.some(u => u.id === activeWardrobeUserId)) {
+        activeWardrobeUserId = users.length ? users[0].id : null;
+      }
+    } else if (cloudLegacyItems && users.length === 0) {
+      pendingMigrationItems = cloudLegacyItems;
+    }
+
+    renderUserTabs();
+    renderReferenceUserOptions();
+    if (anchorMode === "wardrobe") refreshWardrobeAnchorOptions();
+    setSyncStatus("☁️ 클라우드에 동기화됨");
+  }, () => setSyncStatus("⚠️ 오프라인 - 이 브라우저에만 저장됨", "error"));
+
+  savedOutfitsDocRef.onSnapshot(snap => {
+    if (!snap.exists) return;
+    const cloudSaved = snap.data().items || [];
+    savedOutfits = cloudSaved;
+    localStorage.setItem(SAVED_OUTFITS_KEY, JSON.stringify(savedOutfits));
+    renderSavedOutfits();
+  });
 }
 
 function saveOutfit(outfit) {
