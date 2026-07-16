@@ -297,6 +297,24 @@
     margin: 0;
   }
 
+  .card-action-btn {
+    margin-top: 4px;
+    padding: 9px 12px;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    background: none;
+    color: var(--accent-dark);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .card-action-btn:hover:not(:disabled) { background: var(--ivory-deep); }
+  .card-action-btn:disabled { opacity: 0.6; cursor: default; }
+  .card-action-del { border-color: var(--error); color: var(--error); }
+  .card-action-del:hover { background: var(--error-bg); }
+
+  .saved-meta { font-size: 11.5px; color: var(--ink-soft); }
+
   footer {
     text-align: center;
     margin-top: 40px;
@@ -318,6 +336,7 @@
   <div class="main-tabs" id="mainTabs">
     <button type="button" class="main-tab-btn active" data-maintab="recommend">코디 추천</button>
     <button type="button" class="main-tab-btn" data-maintab="wardrobe">옷장 관리</button>
+    <button type="button" class="main-tab-btn" data-maintab="saved">저장한 코디</button>
   </div>
 
   <div id="tabRecommend" class="tab-content">
@@ -490,7 +509,14 @@
   </div>
   </div>
 
-  <footer>코디 계산은 브라우저에서 즉시 이루어지고, 옷장은 클라우드에 자동 동기화됩니다.</footer>
+  <div id="tabSaved" class="tab-content" style="display:none;">
+  <div class="panel">
+    <h2>저장한 코디</h2>
+    <div class="results" id="savedResults"></div>
+  </div>
+  </div>
+
+  <footer>코디 계산은 브라우저에서 즉시 이루어지고, 옷장·저장한 코디는 클라우드에 자동 동기화됩니다.</footer>
 </div>
 
 <script>
@@ -539,7 +565,8 @@ const migrationConfirmBtn = document.getElementById("migrationConfirmBtn");
 const mainTabButtons = document.querySelectorAll("#mainTabs .main-tab-btn");
 const tabContents = {
   recommend: document.getElementById("tabRecommend"),
-  wardrobe: document.getElementById("tabWardrobe")
+  wardrobe: document.getElementById("tabWardrobe"),
+  saved: document.getElementById("tabSaved")
 };
 mainTabButtons.forEach(btn => {
   btn.addEventListener("click", () => {
@@ -656,7 +683,8 @@ const CATEGORY_LABELS = {
   "top": "상의", "bottom": "하의", "outer": "아우터", "shoes": "신발", "accessory": "액세서리"
 };
 
-function createOutfitCard(outfit) {
+function createOutfitCard(outfit, opts) {
+  opts = opts || {};
   const card = document.createElement("div");
   card.className = "card";
 
@@ -698,13 +726,35 @@ function createOutfitCard(outfit) {
     card.appendChild(tip);
   }
 
+  if (opts.onSave) {
+    const saveBtn = document.createElement("button");
+    saveBtn.type = "button";
+    saveBtn.className = "card-action-btn";
+    saveBtn.textContent = "이 코디 저장하기";
+    saveBtn.addEventListener("click", () => {
+      opts.onSave();
+      saveBtn.textContent = "저장됨";
+      saveBtn.disabled = true;
+    });
+    card.appendChild(saveBtn);
+  }
+
+  if (opts.onDelete) {
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "card-action-btn card-action-del";
+    delBtn.textContent = "삭제";
+    delBtn.addEventListener("click", opts.onDelete);
+    card.appendChild(delBtn);
+  }
+
   return card;
 }
 
 function renderResults(outfits) {
   resultsEl.innerHTML = "";
   outfits.forEach(outfit => {
-    const card = createOutfitCard(outfit);
+    const card = createOutfitCard(outfit, { onSave: () => saveOutfit(outfit) });
     resultsEl.appendChild(card);
   });
 }
@@ -793,6 +843,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const cloudDb = firebase.firestore();
 const wardrobeDocRef = cloudDb.collection("closet").doc("wardrobe");
+const savedOutfitsDocRef = cloudDb.collection("closet").doc("savedOutfits");
 
 const syncStatusEl = document.getElementById("syncStatus");
 function setSyncStatus(message, type) {
@@ -840,10 +891,32 @@ function getActiveWardrobeUser() {
   return users.find(u => u.id === activeWardrobeUserId) || null;
 }
 
+const SAVED_OUTFITS_KEY = "coordi_saved_outfits_v1";
+const savedResultsEl = document.getElementById("savedResults");
+
+function loadSavedOutfits() {
+  try {
+    const raw = localStorage.getItem(SAVED_OUTFITS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveSavedOutfits() {
+  localStorage.setItem(SAVED_OUTFITS_KEY, JSON.stringify(savedOutfits));
+  savedOutfitsDocRef.set({ items: savedOutfits })
+    .then(() => setSyncStatus("☁️ 클라우드에 동기화됨"))
+    .catch(() => setSyncStatus("⚠️ 오프라인 - 이 브라우저에만 저장됨", "error"));
+}
+
+let savedOutfits = loadSavedOutfits();
+
 async function initCloudSync() {
   setSyncStatus("☁️ 동기화 확인 중...");
   try {
-    const wardrobeSnap = await wardrobeDocRef.get();
+    const [wardrobeSnap, savedSnap] = await Promise.all([wardrobeDocRef.get(), savedOutfitsDocRef.get()]);
     const cloudData = wardrobeSnap.exists ? wardrobeSnap.data() : {};
     const cloudUsers = Array.isArray(cloudData.users) ? cloudData.users : null;
     const cloudLegacyItems = Array.isArray(cloudData.items) ? cloudData.items : null;
@@ -864,8 +937,17 @@ async function initCloudSync() {
       await wardrobeDocRef.set({ items: pendingMigrationItems }, { merge: true });
     }
 
+    const cloudSaved = savedSnap.exists ? (savedSnap.data().items || []) : [];
+    if (cloudSaved.length > 0) {
+      savedOutfits = cloudSaved;
+      localStorage.setItem(SAVED_OUTFITS_KEY, JSON.stringify(savedOutfits));
+    } else if (savedOutfits.length > 0) {
+      await savedOutfitsDocRef.set({ items: savedOutfits }, { merge: true });
+    }
+
     renderUserTabs();
     renderReferenceUserOptions();
+    renderSavedOutfits();
     if (anchorMode === "wardrobe") refreshWardrobeAnchorOptions();
     setSyncStatus("☁️ 클라우드에 동기화됨");
   } catch (e) {
@@ -899,7 +981,58 @@ async function initCloudSync() {
     if (anchorMode === "wardrobe") refreshWardrobeAnchorOptions();
     setSyncStatus("☁️ 클라우드에 동기화됨");
   }, () => setSyncStatus("⚠️ 오프라인 - 이 브라우저에만 저장됨", "error"));
+
+  savedOutfitsDocRef.onSnapshot(snap => {
+    if (!snap.exists) return;
+    const cloudSaved = Array.isArray(snap.data().items) ? snap.data().items : [];
+    // Same guard as the wardrobe listener: an empty/incomplete snapshot must
+    // never blank out saved outfits we already have locally.
+    if (cloudSaved.length === 0 && savedOutfits.length > 0) return;
+    savedOutfits = cloudSaved;
+    localStorage.setItem(SAVED_OUTFITS_KEY, JSON.stringify(savedOutfits));
+    renderSavedOutfits();
+  });
 }
+
+function saveOutfit(outfit) {
+  savedOutfits.unshift({
+    id: `sv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    savedAt: new Date().toISOString(),
+    occasion: outfit.occasion,
+    items: outfit.items,
+    palette: outfit.palette,
+    tip: outfit.tip
+  });
+  saveSavedOutfits();
+  renderSavedOutfits();
+}
+
+function renderSavedOutfits() {
+  savedResultsEl.innerHTML = "";
+  if (!savedOutfits.length) {
+    const empty = document.createElement("p");
+    empty.className = "wardrobe-empty";
+    empty.textContent = "아직 저장한 코디가 없어요. \"코디 추천\" 탭에서 마음에 드는 코디를 저장해보세요.";
+    savedResultsEl.appendChild(empty);
+    return;
+  }
+  savedOutfits.forEach(saved => {
+    const card = createOutfitCard(saved, {
+      onDelete: () => {
+        savedOutfits = savedOutfits.filter(s => s.id !== saved.id);
+        saveSavedOutfits();
+        renderSavedOutfits();
+      }
+    });
+    const meta = document.createElement("p");
+    meta.className = "saved-meta";
+    meta.textContent = `저장일: ${saved.savedAt ? saved.savedAt.slice(0, 10) : ""}`;
+    card.insertBefore(meta, card.firstChild);
+    savedResultsEl.appendChild(card);
+  });
+}
+
+renderSavedOutfits();
 
 let editingId = null;
 
